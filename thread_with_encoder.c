@@ -31,7 +31,14 @@ pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 #define INT9   9
 #define GPIO10 10
 
-#define TARGET_F 2//Hz
+#define MAX_INTERVAL_TO_USING_FREQ_MEASURE 5000000L
+// Unit: ns; 5ms = 5000000 ns
+#define REVOLUTIONS_EVERY_NANO_SEC 2000000000
+// milifrequency = (int)(1000000000/diff)*1000/500;
+#define MEASURE_INTERVAL 20000
+// Unit: us; 20ms = 20000 us
+#define TARGET_FREQ 2
+// Unit: Hz
 
 static int GPIOExport(int pin)
 {
@@ -233,7 +240,7 @@ void Task1_encoder()
         pthread_mutex_lock(&mutex1);
         FrequencyCounter++;
         diff = nanos - last_nanos;
-        if(diff > 5000000L)
+        if (diff > MAX_INTERVAL_TO_USING_FREQ_MEASURE)
         {
             If_FrequencyMeasure = 0;
         }
@@ -262,27 +269,24 @@ void Task1_encoder()
 
 void Task2_encoder()
 {
-    int milifrequency = 0;
-    while(1)
+    int freq = 0; // Unit: mHz (millihertz) 10e-3 Hz
+    while (1)
     {
-        usleep(20000);//20ms
+        usleep(MEASURE_INTERVAL); 
         pthread_mutex_lock(&mutex1);
-        if(If_FrequencyMeasure)
+        if (If_FrequencyMeasure)
         {
-            milifrequency = FrequencyCounter * 100;
+            freq = FrequencyCounter * 100;
         }
         else
         {
-	    if(diff)
-	    milifrequency = (int)(1000000000/diff)*1000/500;
-	    else
-	    milifrequency = 0;
+            freq = diff ? REVOLUTIONS_EVERY_NANO_SEC/diff : 0;
         }
         diff = 0;
         FrequencyCounter = 0;
         pthread_mutex_unlock(&mutex1);
-        printf("The frequency is %d miliHz\n",milifrequency);
-        Compute_frequency(milifrequency);
+        printf("The frequency is %d miliHz\n", freq);
+        Compute_frequency(freq);
     }
 }
 
@@ -290,12 +294,11 @@ int main(void)
 {
     pthread_t t1,t2;
     char *msg1 = "task1", *msg2 = "task 2";
-    if(pthread_create(&t1, NULL, (void *)Task1_encoder, (void *)msg1))
-    exit(1);
-    if(pthread_create(&t2, NULL, (void *)Task2_encoder, (void *)msg2))
-    exit(1);
-    while(1);
+    if (pthread_create(&t1, NULL, (void *)Task1_encoder, (void *)msg1))
+        exit(1);
+    if (pthread_create(&t2, NULL, (void *)Task2_encoder, (void *)msg2))
+        exit(1);
+    while (1) ;
     printf("Threads finished\n");
     return 0;
 }
-
