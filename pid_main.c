@@ -13,6 +13,7 @@ char str = '\0';
 int FrequencyCounter = 0;
 int If_FrequencyMeasure = 0;
 int Serial_fd = 0;
+int Output_fd = 0;
 float P = 0, I = 0 , D = 0;
 long nanos = 0;
 long last_nanos = 0;
@@ -42,8 +43,8 @@ pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 #define TARGET_FREQ 3000
 // Unit: miliHz
 
-#define Kp 2.0f
-#define Ki 5.0f
+#define Kp 3.0f
+#define Ki 2.0f
 #define Kd 1.0f
 //PID parameters
 
@@ -258,11 +259,16 @@ void Compute_frequency(int milifrequency)
     int error_value = 0, intergrate_value = 0, differentiate_value = 0;
     float time_interval = (float)MEASURE_INTERVAL / 1000 / 1000; //us to s.
     int PID = 0;
+    char *p = NULL;
+    p = (char *)malloc(10);
+    sprintf(p, "%d\r\n", milifrequency);
+    write(Output_fd, (const char*)p, strlen(p));
     error_value = TARGET_FREQ - milifrequency;
     //printf("error_value = %d ", error_value);
     Proportional(&error_value, &P);
     Intergrate(&time_interval, &error_value, &I);
     PID = (int)(P + Ki*I);
+    free(p);
     Output(PID);
     printf("PID = %d P = %f I = %f\n", PID, P, I);
     //compute PID;
@@ -270,6 +276,10 @@ void Compute_frequency(int milifrequency)
 
 /*
 // Programming: Interrupt
+struct pollfd pfd0; //see "man poll"
+pfd0.events = POLLPRI | POLLERR; // enable events
+pfd0.fd = open("/sys/class/gpio/gpio9/value", O_RDONLY | O_NONBLOCK); // open file
+lseek(pfd0.fd, 0, SEEK_SET); read (pfd0.fd, str, 1); // empty the read buffer
 struct pollfd pfd0; //see "man poll"
 pfd0.events = POLLPRI | POLLERR; // enable events
 pfd0.fd = open("/sys/class/gpio/gpio9/value", O_RDONLY | O_NONBLOCK); // open file
@@ -347,6 +357,7 @@ int main(void)
 {
     system("echo 737 1\\\\> /dev/serial0");
     usleep(2000000);
+    Output_fd = open("sample.dat", O_CREAT | O_TRUNC | O_RDWR);
     Serial_fd = open("/dev/serial0",O_RDWR|O_NOCTTY|O_NDELAY);
     pthread_t t1,t2;
     char *msg1 = "task1", *msg2 = "task 2";
@@ -357,6 +368,6 @@ int main(void)
     while (1) ;
     printf("Threads finished\n");
     close(Serial_fd);
+    close(Output_fd);
     return 0;
 }
-
