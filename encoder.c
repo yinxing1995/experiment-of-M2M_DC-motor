@@ -41,7 +41,6 @@ pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 // Unit: miliHz
 
 
-
 /* GPIO Support - BEGIN */
 
 static int GPIOExport(int pin)
@@ -288,7 +287,7 @@ void Task2_encoder()
 int main(void)
 {
     pthread_t t1,t2;
-    char *msg1 = "task1", *msg2 = "task 2";
+    char *msg1 = "task 1", *msg2 = "task 2";
     if (pthread_create(&t1, NULL, (void *)Task1_encoder, (void *)msg1))
         exit(1);
     if (pthread_create(&t2, NULL, (void *)Task2_encoder, (void *)msg2))

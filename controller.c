@@ -7,7 +7,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+// Flag to control
 #define DEBUG
+#define LOCAL_MODE
 
 // PID Parameters Definition
 #define Kp 3.0f
@@ -29,7 +31,13 @@ float P = 0.0f, I = 0.0f, D = 0.0f;
 // Perferences
 char* Serial_addr = "/dev/serial0";
 char* Output_addr = "sample.dat";
-char* myfifo = "~/myfifo";
+
+// FIFO Definition
+#ifndef LOCAL_MODE
+#define FIFO_NAME "fifomaster"
+#else
+#define FIFO_NAME "fifomaster"
+#endif
 
 /* Function Declaration - BEGIN */
 int Serial_init(void);
@@ -87,11 +95,21 @@ void Output_close(void)
 /* FIFO - BEGIN */
 int FIFO_init(void)
 {
-    fifo_fd = open(myfifo, O_RDONLY);
+    // 若fifo已存在，则直接使用，否则创建它
+    // If a fifo already exists, use it directly, otherwise create it
+    if ((mkfifo(FIFO_NAME, 0777) < 0) && (errno != EEXIST))
+    {
+        printf("cannot create fifo...\n");
+        exit(1);
+    }
+
+    // 以阻塞型只读方式打开fifo
+    // Open FIFO using block method with Read Only Mode.
+    fifo_fd = open(FIFO_NAME, O_RDONLY);
     if (-1 == fifo_fd)
     {
-        // ERROR
-        return (-1);
+        printf("open %s for read error\n", FIFO_NAME);
+        exit(1);
     }
     return 0;
 }
@@ -99,10 +117,11 @@ int FIFO_init(void)
 void FIFO_close(void)
 {
     close(fifo_fd);
+    unlink(FIFO_NAME);
 }
 /* FIFO - END */
 
-/* PID - BEGIN */
+/* MAIN PID - BEGIN */
 
 void Output(int E)
 {
@@ -170,27 +189,44 @@ void Compute_frequency(int milifrequency)
     //compute PID;
 }
 
-/* PID - END */
+/* MAIN PID - END */
 
 int main(int argc, char const *argv[])
 {
     char buffer[80];
-    int data;
+    int data = 0, r_num = 0;
 
+    /* Initialization something */
     Serial_init();
     Output_init();
     FIFO_init();
+
+    /* Let motor stop frist */
+    Serial_Transmit("737 1\\", 7);
+    /* And then start */
+    usleep(20000);
+    Serial_Transmit("800 1\\", 7);
+
     while (1)
     {
-        read(fifo_fd, buffer, 80);
+        usleep(20000);
+
+        r_num = read(fifo_fd, buffer, 80);
         if (sscanf(buffer, "%d", &data) != 0)
         {
-            printf("received: %d\n", data);
-            // Compute_frequency(data);
+            Compute_frequency(data);
+            #ifdef DEBUG
+            printf("%d bytes received, data is: %d, raw: %s\n", r_num, data, buffer);
+            #endif
         }
-        usleep(20000);
+        #ifdef DEBUG
+        else
+            printf("%d bytes received, raw: %s\n", r_num, buffer);
+        #endif
     }
+
     Serial_close();
     Output_close();
+    FIFO_close();
     return 0;
 }
