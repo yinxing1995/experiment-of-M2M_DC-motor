@@ -10,9 +10,10 @@
 #include <sys/types.h>
 #include <pthread.h>
 
-// Flag to control
+/* Control Flag */
 #define DEBUG
 #define LOCAL_MODE
+#define DIRECTION_DETECT_ENABLE
 
 /* Definitions */
 
@@ -33,9 +34,9 @@
 
 // FIFO
 #ifndef LOCAL_MODE
-#define FIFO_NAME "fifomaster"
+    #define FIFO_NAME "fifomaster"
 #else
-#define FIFO_NAME "fifomaster"
+    #define FIFO_NAME "fifomaster"
 #endif
 
 /* Parameters */
@@ -49,14 +50,19 @@
 // Unit: miliHz
 
 
-// Global variables
+/* Global variables */
+
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
-// pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
+
+#ifdef DIRECTION_DETECT_ENABLE
+pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 char str[10] = "";
 
 int FrequencyCounter = 0;
 int If_FrequencyMeasure = 0;
+int RotationDirection = 1;   //  1: Clockwise, 0: Anticlockwise.
 
 long nanos = 0;
 long last_nanos = 0;
@@ -130,7 +136,7 @@ static int GPIODirection(int pin, int dir)
 
 static int GPIOEdge(int pin, int edge)
 {
-        static const char s_edge_str[][10]  = {"none", "rising", "falling", "both"};
+        static const char s_edge_str[][10]  = {"none", "rising", "falling", "", "both"};
 
 #define EDGE_MAX 35
         char path[EDGE_MAX];
@@ -244,6 +250,7 @@ static long get_nanos(void)
 /* Timer Support - END */
 
 /* FIFO - BEGIN */
+
 int FIFO_init(void)
 {
     // 若fifo已存在，则直接使用，否则创建它
@@ -277,21 +284,47 @@ void FIFO_close(void)
     close(fifo_fd);
     unlink(FIFO_NAME);
 }
+
 /* FIFO - END */
 
 /* MAIN - BEGIN */
 
 void Task1_encoder(void)
 {
-    //last_nanos = get_nanos();
+    int RotationDirectionCounter = 0, PreviousValue = 1, Value = 0;
     struct pollfd pfd0;
+
     pfd0.events = POLLPRI | POLLERR;
     pfd0.fd = open("/sys/class/gpio/gpio9/value", O_RDONLY | O_NONBLOCK);
     while (1)
     {
         lseek(pfd0.fd, 0, SEEK_SET); read(pfd0.fd, str, 1);
         poll(&pfd0, 1, 1000);
+
         nanos = get_nanos();
+
+#ifdef DIRECTION_DETECT_ENABLE
+        pthread_mutex_lock(&mutex2);
+
+        /* Rotation Direction Detect */
+        Value = GPIORead(GPIO10);
+        if (PreviousValue == Value && Value != RotationDirection)
+            RotationDirectionCounter++;
+        if (PreviousValue != Value)
+            RotationDirectionCounter = 0;
+
+        if (RotationDirectionCounter > 3)
+        {
+            RotationDirection = Value;
+    #ifdef DEBUG
+            printf("Rotation direction changed! Now is %d\n", RotationDirection);
+    #endif
+        }
+        PreviousValue = Value;
+
+        pthread_mutex_unlock(&mutex2);
+#endif
+
         pthread_mutex_lock(&mutex1);
         FrequencyCounter++;
         diff = nanos - last_nanos;
@@ -343,32 +376,31 @@ void Task2_encoder(void)
         FrequencyCounter = 0;
         pthread_mutex_unlock(&mutex1);
 
+#ifdef DIRECTION_DETECT_ENABLE
+        pthread_mutex_lock(&mutex2);
+        if (RotationDirection == 0)
+            freq = -freq;
+        pthread_mutex_unlock(&mutex2);
+#endif
 
 #ifdef DEBUG
         printf("The frequency is %d miliHz\n", freq);
 #endif
         char string[20] = "";
-        memset(string, 0, sizeof(string));
+        // memset(string, 0, sizeof(string));
         // sprintf(string, "%d\0", freq);
         snprintf(string, 20, "%07d%c", freq, '\0');
         if (-1 == FIFO_Transmit(string, 8))
         {
-#ifdef DEBUG
             printf("write Failed");
-#endif
         }
     }
 }
 
-void Task3_encoder(void)
-{
-	;
-}
-
 int main(void)
 {
-    pthread_t t1, t2, t3;
-    char *msg1 = "task 1", *msg2 = "task 2", *msg3 = "task 3";
+    pthread_t t1, t2;
+    char *msg1 = "task 1", *msg2 = "task 2";
 
     /* Initialization something */
     FIFO_init();

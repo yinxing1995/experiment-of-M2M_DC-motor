@@ -8,9 +8,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-// Flag to control
+/* Control Flag */
 #define DEBUG
 #define LOCAL_MODE
+
+/* Definitions */
 
 // PID Parameters Definition
 #define Kp 3.0f
@@ -23,21 +25,21 @@
 #define TARGET_FREQ 3000
 // Unit: miliHz
 
-// Global variables Definition
+/* Global variables */
 int Serial_fd = 0;
 int Output_fd = 0;
 int fifo_fd = 0;
 float P = 0.0f, I = 0.0f, D = 0.0f;
 
-// Perferences
-char* Serial_addr = "/dev/serial0";
-char* Output_addr = "sample.dat";
+/* Perferences */
+char *Serial_addr = "/dev/serial0";
+char *Output_addr = "sample.dat";
 
 // FIFO Definition
 #ifndef LOCAL_MODE
-#define FIFO_NAME "fifomaster"
+    #define FIFO_NAME "fifomaster"
 #else
-#define FIFO_NAME "fifomaster"
+    #define FIFO_NAME "fifomaster"
 #endif
 
 /* Function Declaration - BEGIN */
@@ -76,6 +78,7 @@ void Serial_Transmit(const void* buff, int len)
 /* Serial Support - END */
 
 /* Output File - BEGIN */
+
 int Output_init(void)
 {
     Output_fd = open("sample.dat", O_CREAT | O_TRUNC | O_RDWR);
@@ -91,9 +94,11 @@ void Output_close(void)
 {
     close(Serial_fd);
 }
+
 /* Output File - END */
 
 /* FIFO - BEGIN */
+
 int FIFO_init(void)
 {
     // 若fifo已存在，则直接使用，否则创建它
@@ -120,6 +125,7 @@ void FIFO_close(void)
     close(fifo_fd);
     unlink(FIFO_NAME);
 }
+
 /* FIFO - END */
 
 /* MAIN PID - BEGIN */
@@ -128,7 +134,7 @@ void Output(int E)
 {
     //int final_value = 0, direction = 0;
     int output_value = 0;
-    
+
     if (E > 1000 || E < -1000)
     {
         E > 0 ? (output_value = 30 * E / 1000 + 800) : (output_value = 30 * E / 1000 + 670);
@@ -152,9 +158,9 @@ void Output(int E)
     sprintf(str, "%d 1\\", output_value);
     Serial_Transmit(str, strlen(str));
     // write(Serial_fd, p, strlen(p));
-    #ifdef DEBUG
+#ifdef DEBUG
     printf("output_value = %d\n", output_value);
-    #endif
+#endif
 }
 
 void Proportional(int *x, float *y)
@@ -184,9 +190,9 @@ void Compute_frequency(int milifrequency)
 
     Output(PID);
 
-    #ifdef DEBUG
+#ifdef DEBUG
     printf("PID = %d P = %f I = %f\n", PID, P, I);
-    #endif
+#endif
     //compute PID;
 }
 
@@ -210,20 +216,18 @@ int main(int argc, char const *argv[])
 
     while (1)
     {
-        usleep(20000);
-
-        r_num = read(fifo_fd, buffer, 80);
+        while ((r_num = read(fifo_fd, buffer, sizeof(buffer))) == 0) ;
         if (sscanf(buffer, "%d", &data) != 0)
         {
             Compute_frequency(data);
-            #ifdef DEBUG
+#ifdef DEBUG
             printf("%d bytes received, data is: %d, raw: %s\n", r_num, data, buffer);
-            #endif
+#endif
         }
-        #ifdef DEBUG
+#ifdef DEBUG
         else
             printf("%d bytes received, raw: %s\n", r_num, buffer);
-        #endif
+#endif
     }
 
     Serial_close();
