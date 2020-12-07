@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <poll.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -127,7 +128,7 @@ void Output(int E)
 {
     //int final_value = 0, direction = 0;
     int output_value = 0;
-    /* 
+    
     if (E > 1000 || E < -1000)
     {
         E > 0 ? (output_value = 30 * E / 1000 + 800) : (output_value = 30 * E / 1000 + 670);
@@ -139,13 +140,13 @@ void Output(int E)
     else
     {
         E > 0 ? (output_value = 40 * E / 1000 + 800) : (output_value = 40 * E / 1000 + 670);
-    }*/
-
+    }
+/*
     const int n[] = {800, 670};
     const int m[] = {30, 35, 40};
     int i = E/1000 ? ( (E < 2000 || E > -2000) ? 1 : 2) : 0;
 
-    output_value = m[i] * E / 1000 + n[E > 0 ? 0 : 1];
+    output_value = m[i] * E / 1000 + n[E > 0 ? 0 : 1];*/
 
     char str[15];
     sprintf(str, "%d 1\\", output_value);
