@@ -42,21 +42,17 @@
 /* Parameters */
 #define MAX_INTERVAL_TO_USING_FREQ_MEASURE 5000000L
 // Unit: ns; 5ms = 5000000 ns
-#define REVOLUTIONS_EVERY_NANO_SEC 2000000000
-// milifrequency = (int)(1000000000/diff)*1000/500;
 #define MEASURE_INTERVAL 20000
 // Unit: us; 20ms = 20000 us
-#define TARGET_FREQ 3000
-// Unit: miliHz
+#define REVOLUTIONS_EVERY_NANO_SEC 2000000000
+// milifrequency = (int)(1000000000/diff)*1000/500;
+#define MILLIHZ_FREQ_PER_COUNT 100
+// Should = 1/500/MEASURE_INTERVAL(Unit: s) * 10^3
+// 100 = 1/500 * 1/0.02 * 10^3
 
 
 /* Global variables */
-
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
-
-#ifdef DIRECTION_DETECT_ENABLE
-pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 char str[10] = "";
 
@@ -64,9 +60,7 @@ int FrequencyCounter = 0;
 int If_FrequencyMeasure = 0;
 int RotationDirection = 1;   //  1: Clockwise, 0: Anticlockwise.
 
-long nanos = 0;
-long last_nanos = 0;
-long diff = 0;
+long diff = 0;   // Unit: nanosecond
 
 int fifo_fd = 0;
 
@@ -263,8 +257,8 @@ int FIFO_init(void)
 
     // Open FIFO with Write Only Mode.
     fifo_fd = open(FIFO_NAME, O_WRONLY);
-    // Open FIFO with Write Only and non block Mode.
-    // fifo_fd = open(FIFO_NAME, O_WRONLY | O_NONBLOCK);
+
+    // fifo_fd = open(FIFO_NAME, O_WRONLY | O_NONBLOCK);   // Open FIFO with Write Only and non block Mode.
 
     if (-1 == fifo_fd)
     {
@@ -291,29 +285,31 @@ void FIFO_close(void)
 
 void Task1_encoder(void)
 {
-    int RotationDirectionCounter = 0, PreviousValue = 1, Value = 0;
+    int DirectionChangeCounter = 0, PreviousValue = 1, Value = 0;
+    long nanos = 0, last_nanos = 0;
     struct pollfd pfd0;
 
-    pfd0.events = POLLPRI | POLLERR;
-    pfd0.fd = open("/sys/class/gpio/gpio9/value", O_RDONLY | O_NONBLOCK);
+    pfd0.events = POLLPRI | POLLERR;   // enable events
+    pfd0.fd = open("/sys/class/gpio/gpio9/value", O_RDONLY | O_NONBLOCK);   // open file
     while (1)
     {
+        /* Seek and wait for the next interrupt */
         lseek(pfd0.fd, 0, SEEK_SET); read(pfd0.fd, str, 1);
         poll(&pfd0, 1, 1000);
 
         nanos = get_nanos();
+        Value = GPIORead(GPIO10);
+
+        pthread_mutex_lock(&mutex1);
 
 #ifdef DIRECTION_DETECT_ENABLE
-        pthread_mutex_lock(&mutex2);
-
         /* Rotation Direction Detect */
-        Value = GPIORead(GPIO10);
         if (PreviousValue == Value && Value != RotationDirection)
-            RotationDirectionCounter++;
+            DirectionChangeCounter++;
         if (PreviousValue != Value)
-            RotationDirectionCounter = 0;
+            DirectionChangeCounter = 0;
 
-        if (RotationDirectionCounter > 3)
+        if (DirectionChangeCounter > 3)
         {
             RotationDirection = Value;
     #ifdef DEBUG
@@ -321,11 +317,8 @@ void Task1_encoder(void)
     #endif
         }
         PreviousValue = Value;
-
-        pthread_mutex_unlock(&mutex2);
 #endif
 
-        pthread_mutex_lock(&mutex1);
         FrequencyCounter++;
         diff = nanos - last_nanos;
         /*
@@ -362,11 +355,11 @@ void Task2_encoder(void)
     int freq = 0; // Unit: mHz (millihertz) 10e-3 Hz
     while (1)
     {
-        usleep(MEASURE_INTERVAL); 
+        usleep(MEASURE_INTERVAL);
         pthread_mutex_lock(&mutex1);
         if (If_FrequencyMeasure)
         {
-            freq = FrequencyCounter * 100;
+            freq = FrequencyCounter * MILLIHZ_FREQ_PER_COUNT;
         }
         else
         {
@@ -374,14 +367,13 @@ void Task2_encoder(void)
         }
         diff = 0;
         FrequencyCounter = 0;
-        pthread_mutex_unlock(&mutex1);
 
 #ifdef DIRECTION_DETECT_ENABLE
-        pthread_mutex_lock(&mutex2);
         if (RotationDirection == 0)
             freq = -freq;
-        pthread_mutex_unlock(&mutex2);
 #endif
+
+        pthread_mutex_unlock(&mutex1);
 
 #ifdef DEBUG
         printf("The frequency is %d miliHz\n", freq);
@@ -409,8 +401,6 @@ int main(void)
         exit(1);
     if (pthread_create(&t2, NULL, (void *)Task2_encoder, (void *)msg2))
         exit(1);
-    // if (pthread_create(&t3, NULL, (void *)Task3_encoder, (void *)msg3))
-    //     exit(1);
 
     while (1) ;
 
