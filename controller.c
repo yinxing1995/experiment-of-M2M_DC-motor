@@ -7,10 +7,15 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
-/* Control Flag */
+// Flag to control
 #define DEBUG
 #define LOCAL_MODE
+
+/*if placed on remote Rig, it is recommended to use stream_processing*/
+#define STREAM_PROCESSING
+//#define FRAME_PROCESSING
 
 /* Definitions */
 
@@ -29,6 +34,7 @@
 int Serial_fd = 0;
 int Output_fd = 0;
 int fifo_fd = 0;
+int previous_error_value = 0;
 float P = 0.0f, I = 0.0f, D = 0.0f;
 
 /* Perferences */
@@ -37,7 +43,7 @@ char *Output_addr = "sample.dat";
 
 // FIFO Definition
 #ifndef LOCAL_MODE
-    #define FIFO_NAME "fifomaster"
+    #define FIFO_NAME "fifoslave"
 #else
     #define FIFO_NAME "fifomaster"
 #endif
@@ -174,6 +180,14 @@ void Intergrate(const float* dt, int* x, float* y)
     //printf("change_y = %f\n", (*x)*(*dt));
 }
 
+/*
+void Deriviate(const float* dt, int* x, float* y)
+{
+    *y = *y + ((*x) - previous_error_value)/(*dt);
+    //printf("change_y = %f\n", (*x)*(*dt));
+}
+*/
+
 void Compute_frequency(int milifrequency)
 {
     int error_value = 0, intergrate_value = 0, differentiate_value = 0;
@@ -186,9 +200,10 @@ void Compute_frequency(int milifrequency)
     //printf("error_value = %d ", error_value);
     Proportional(&error_value, &P);
     Intergrate(&time_interval, &error_value, &I);
-    PID = (int)(P + Ki*I);
+    //Deriviate(&time_interval, &error_value, &D);
+    PID = (int)(P + Ki*I +Kd*D);
 
-    Output(PID);
+    Output(PID);//Serial output begins.
 
 #ifdef DEBUG
     printf("PID = %d P = %f I = %f\n", PID, P, I);
@@ -198,22 +213,70 @@ void Compute_frequency(int milifrequency)
 
 /* MAIN PID - END */
 
-int main(int argc, char const *argv[])
+/* MAIN GET_FREQUENCY - BEGIN */
+#ifdef STREAM_PROCESSING
+void Get_frequency()
+{
+    char r_buf = '\0';
+    uint n_buf[10] = {0};
+    bool Negative = false;
+    int pointer = 0, Milifrequency = 0;
+    while(1)
+    {
+        pointer = 0;
+        Negative = false;
+        while(1)
+        {
+            read(fifo_fd,&r_buf,1);
+            if(r_buf == '\0')
+                break;
+            if(r_buf < '0' || r_buf > '9')
+            {
+                if(r_buf == '-')
+                    Negative = true;
+                continue;
+            }
+            else
+            {
+               n_buf[pointer] = (int)r_buf - 48;
+               pointer++;
+               if(pointer > 9)
+                   goto EXIT;
+            }
+        }
+        switch (pointer)
+        {
+            case 1: Milifrequency = n_buf[0];
+                    break;
+            case 2: Milifrequency = n_buf[0]*10 + n_buf[1];
+                    break;
+            case 3: Milifrequency = n_buf[0]*100 + n_buf[1]*10 + n_buf[2];
+                    break;
+            case 4: Milifrequency = n_buf[0]*1000 + n_buf[1]*100 + n_buf[2]*10 + n_buf[3];
+                    break;
+            case 5: Milifrequency = n_buf[0]*10000 + n_buf[1]*1000 + n_buf[2]*100 + n_buf[3]*10 + n_buf[4];
+                    break;
+            case 6: Milifrequency = n_buf[0]*100000 + n_buf[1]*10000 + n_buf[2]*1000 + n_buf[3]*100 + n_buf[4]*10 + n_buf[5];
+                    break;
+            case 7: Milifrequency = n_buf[0]*1000000 + n_buf[1]*100000 + n_buf[2]*10000 + n_buf[3]*1000 + n_buf[4]*100 + n_buf[5]*10 + n_buf[6];
+                    break;
+            default:printf("Value is too huge, please check the parameters!!!\n");
+                    break;
+        }
+        if(Negative)Milifrequency = - Milifrequency;
+        Compute_frequency(Milifrequency);
+        EXIT:
+	;
+    }
+}
+
+#elif FRAME_PROCESSING
+void Get_frequency()
 {
     char buffer[80];
     int data = 0, r_num = 0;
 
     /* Initialization something */
-    Serial_init();
-    Output_init();
-    FIFO_init();
-
-    /* Let motor stop frist */
-    Serial_Transmit("737 1\\", 7);
-    /* And then start */
-    usleep(20000);
-    Serial_Transmit("800 1\\", 7);
-
     while (1)
     {
         while ((r_num = read(fifo_fd, buffer, sizeof(buffer))) == 0) ;
@@ -229,9 +292,28 @@ int main(int argc, char const *argv[])
             printf("%d bytes received, raw: %s\n", r_num, buffer);
 #endif
     }
+}
+#endif
+/* MAIN GET_FREQUENCY - END */
+
+int main(int argc, char const *argv[])
+{
+    Serial_init();
+    Output_init();
+    FIFO_init();
+    /* Let motor stop frist */  
+    Serial_Transmit("737 1\\", 7);
+
+    /* And then start */
+    usleep(20000);
+    Serial_Transmit("800 1\\", 7);
+
+    /*Main loop starts*/
+    Get_frequency();
 
     Serial_close();
     Output_close();
     FIFO_close();
     return 0;
 }
+
