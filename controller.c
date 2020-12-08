@@ -24,6 +24,8 @@
 #define Ki 2.0f
 #define Kd 1.0f
 
+#define PID_MAX 9000
+#define PID_MIN -9000
 #define MEASURE_INTERVAL 20000
 // Unit: us; 20ms = 20000 us
 
@@ -202,7 +204,11 @@ void Compute_frequency(int milifrequency)
     Intergrate(&time_interval, &error_value, &I);
     //Deriviate(&time_interval, &error_value, &D);
     PID = (int)(P + Ki*I +Kd*D);
-
+    if(PID > PID_MAX)
+	PID = PID_MAX;
+    else if(PID < PID_MIN)
+	PID = PID_MIN;
+    
     Output(PID);//Serial output begins.
 
 #ifdef DEBUG
