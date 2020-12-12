@@ -7,13 +7,17 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <pthread.h>
 
 /* Control Flag */
 #define DEBUG
-#define LOCAL_MODE
-#define DIRECTION_DETECT_ENABLE
+#define ENABLE_DIRECTION_DETECT
+#define PRINT_TO_STDIO
+
+#ifdef PRINT_TO_STDIO
+#undef DEBUG
+#endif
+
 
 /* Definitions */
 
@@ -33,10 +37,8 @@
 #define GPIO10 10
 
 // FIFO
-#ifndef LOCAL_MODE
-    #define FIFO_NAME "fifomaster"
-#else
-    #define FIFO_NAME "fifomaster"
+#ifndef PRINT_TO_STDIO
+#define FIFO_NAME "fifomaster"
 #endif
 
 /* Parameters */
@@ -53,8 +55,6 @@
 
 /* Global variables */
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
-
-char str[10] = "";
 
 int FrequencyCounter = 0;
 int If_FrequencyMeasure = 0;
@@ -244,6 +244,7 @@ static long get_nanos(void)
 /* Timer Support - END */
 
 /* FIFO - BEGIN */
+#ifndef PRINT_TO_STDIO
 
 int FIFO_init(void)
 {
@@ -279,6 +280,7 @@ void FIFO_close(void)
     unlink(FIFO_NAME);
 }
 
+#endif
 /* FIFO - END */
 
 /* MAIN - BEGIN */
@@ -287,10 +289,12 @@ void Task1_encoder(void)
 {
     int DirectionChangeCounter = 0, PreviousValue = 1, Value = 0;
     long nanos = 0, last_nanos = 0;
+    char str[10] = "";
     struct pollfd pfd0;
 
     pfd0.events = POLLPRI | POLLERR;   // enable events
     pfd0.fd = open("/sys/class/gpio/gpio9/value", O_RDONLY | O_NONBLOCK);   // open file
+
     while (1)
     {
         /* Seek and wait for the next interrupt */
@@ -302,7 +306,7 @@ void Task1_encoder(void)
 
         pthread_mutex_lock(&mutex1);
 
-#ifdef DIRECTION_DETECT_ENABLE
+#ifdef ENABLE_DIRECTION_DETECT
         /* Rotation Direction Detect */
         if (PreviousValue == Value && Value != RotationDirection)
             DirectionChangeCounter++;
@@ -368,7 +372,7 @@ void Task2_encoder(void)
         diff = 0;
         FrequencyCounter = 0;
 
-#ifdef DIRECTION_DETECT_ENABLE
+#ifdef ENABLE_DIRECTION_DETECT
         if (RotationDirection == 1)
             freq = -freq;
 #endif
@@ -378,6 +382,7 @@ void Task2_encoder(void)
 #ifdef DEBUG
         printf("The frequency is %d miliHz\n", freq);
 #endif
+#ifndef PRINT_TO_STDIO
         char string[20] = "";
         // memset(string, 0, sizeof(string));
         // sprintf(string, "%d\0", freq);
@@ -386,6 +391,10 @@ void Task2_encoder(void)
         {
             printf("write Failed");
         }
+#else   // defined(PRINT_TO_STDIO)
+        printf("%d\n", freq);
+        fflush(stdout);
+#endif
     }
 }
 
@@ -395,7 +404,10 @@ int main(void)
     char *msg1 = "task 1", *msg2 = "task 2";
 
     /* Initialization something */
+    // Config_GPIO();
+#ifndef PRINT_TO_STDIO
     FIFO_init();
+#endif
 
     if (pthread_create(&t1, NULL, (void *)Task1_encoder, (void *)msg1))
         exit(1);
