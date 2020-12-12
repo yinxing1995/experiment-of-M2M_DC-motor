@@ -22,7 +22,7 @@
 // PID Parameters
 #define Kp 2.0f
 #define Ki 0.5f
-#define Kd 0.5f
+#define Kd 0.0f
 
 #define PID_MAX 9000
 #define PID_MIN -9000
@@ -184,14 +184,15 @@ void Proportional(int *x, float *y)
 
 void Intergrate(const float* dt, int* x, float* y)
 {
-    *y = *y + (*x);//*(*dt);
+    *y = *y + (*x)*(*dt);
     //printf("change_y = %f\n", (*x)*(*dt));
 }
 
 
 void Deriviate(const float* dt, int* x, float* y)
 {
-    *y = ((*x) - previous_error_value);///(*dt);
+    *y = ((*x) - previous_error_value)/(*dt);
+    previous_error_value = (*x);
     //printf("change_y = %f\n", (*x)*(*dt));
 }
 
