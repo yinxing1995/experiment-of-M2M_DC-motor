@@ -20,9 +20,9 @@
 /* Definitions */
 
 // PID Parameters Definition
-#define Kp 3.0f
-#define Ki 2.0f
-#define Kd 1.0f
+#define Kp 2.0f
+#define Ki 0.5f
+#define Kd 0.5f
 
 #define PID_MAX 9000
 #define PID_MIN -9000
@@ -142,7 +142,7 @@ void Output(int E)
 {
     //int final_value = 0, direction = 0;
     int output_value = 0;
-
+/*
     if (E > 1000 || E < -1000)
     {
         E > 0 ? (output_value = 30 * E / 1000 + 800) : (output_value = 30 * E / 1000 + 670);
@@ -155,13 +155,14 @@ void Output(int E)
     {
         E > 0 ? (output_value = 40 * E / 1000 + 800) : (output_value = 40 * E / 1000 + 670);
     }
+*/
 /*
     const int n[] = {800, 670};
     const int m[] = {30, 35, 40};
     int i = E/1000 ? ( (E < 2000 || E > -2000) ? 1 : 2) : 0;
 
     output_value = m[i] * E / 1000 + n[E > 0 ? 0 : 1];*/
-
+    E > 0 ? (output_value = 20 * E / 1000 + 800) : (output_value = 20 * E / 1000 + 670);
     char str[15];
     sprintf(str, "%d 1\\", output_value);
     Serial_Transmit(str, strlen(str));

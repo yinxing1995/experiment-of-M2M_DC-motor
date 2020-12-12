@@ -369,7 +369,7 @@ void Task2_encoder(void)
         FrequencyCounter = 0;
 
 #ifdef DIRECTION_DETECT_ENABLE
-        if (RotationDirection == 0)
+        if (RotationDirection == 1)
             freq = -freq;
 #endif
 
