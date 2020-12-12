@@ -14,8 +14,8 @@
 // #define INPUT_FROM_STDIO
 
 /*if placed on remote Rig, it is recommended to use stream_processing*/
-#define STREAM_PROCESSING
-//#define FRAME_PROCESSING
+// #define STREAM_PROCESSING
+#define FRAME_PROCESSING
 
 /* Definitions */
 
@@ -241,7 +241,7 @@ void Get_frequency(void)
     {
         if (scanf("%d", &data) != 0)
         {
-            fflush(stdout);
+            // fflush(stdout);
             Compute_frequency(data);
         }
     }

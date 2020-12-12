@@ -12,7 +12,7 @@
 /* Control Flag */
 #define DEBUG
 #define ENABLE_DIRECTION_DETECT
-#define PRINT_TO_STDIO
+// #define PRINT_TO_STDIO
 
 #ifdef PRINT_TO_STDIO
 #undef DEBUG
@@ -308,7 +308,7 @@ void Task1_encoder(void)
 
 #ifdef ENABLE_DIRECTION_DETECT
         /* Rotation Direction Detect */
-        if (PreviousValue == Value && Value != RotationDirection)
+        if (Value != RotationDirection && PreviousValue == Value)
             DirectionChangeCounter++;
         if (PreviousValue != Value)
             DirectionChangeCounter = 0;
@@ -316,8 +316,9 @@ void Task1_encoder(void)
         if (DirectionChangeCounter > 3)
         {
             RotationDirection = Value;
+            DirectionChangeCounter = 0;
     #ifdef DEBUG
-            printf("Rotation direction changed! Now is %d\n", RotationDirection);
+            printf("Rotation direction changed! Now is %d.\n", RotationDirection);
     #endif
         }
         PreviousValue = Value;
