@@ -11,7 +11,7 @@
 /* Control Flag */
 #define DEBUG
 #define LOCAL_MODE
-// #define INPUT_FROM_STDIO
+//#define INPUT_FROM_STDIO
 
 /*if placed on remote Rig, it is recommended to use stream_processing*/
 #define STREAM_PROCESSING
@@ -166,7 +166,7 @@ void Output(int E)
 
     /* Calculate output value */
     // E > 0 ? (output_value = 20 * E / 1000 + 800) : (output_value = 20 * E / 1000 + 670);
-    output_value = 20 * E / 1000 + (E > 0 ? 800 : 670);
+    output_value = 20 * E / 1000 + (E > 0 ? 777 : 697);
 
     sprintf(str, "%d 1\\", output_value);
     Serial_Transmit(str, strlen(str));
@@ -184,17 +184,17 @@ void Proportional(int *x, float *y)
 
 void Intergrate(const float* dt, int* x, float* y)
 {
-    *y = *y + (*x)*(*dt);
+    *y = *y + (*x);//*(*dt);
     //printf("change_y = %f\n", (*x)*(*dt));
 }
 
-/*
+
 void Deriviate(const float* dt, int* x, float* y)
 {
-    *y = *y + ((*x) - previous_error_value)/(*dt);
+    *y = ((*x) - previous_error_value);///(*dt);
     //printf("change_y = %f\n", (*x)*(*dt));
 }
-*/
+
 
 void Compute_frequency(int milifrequency)
 {
@@ -212,7 +212,7 @@ void Compute_frequency(int milifrequency)
     //printf("error_value = %d ", error_value);
     Proportional(&error_value, &P);
     Intergrate(&time_interval, &error_value, &I);
-    //Deriviate(&time_interval, &error_value, &D);
+    Deriviate(&time_interval, &error_value, &D);
     PID = (int)(P + Ki*I + Kd*D);
     /* Limit PID output to between PID_MAX and PID_MIN */
     if (PID > PID_MAX)
