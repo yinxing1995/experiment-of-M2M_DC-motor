@@ -241,7 +241,7 @@ void Get_frequency(void)
     {
         if (scanf("%d", &data) != 0)
         {
-            fflush(stdout);
+            // fflush(stdout);
             Compute_frequency(data);
         }
     }
