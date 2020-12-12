@@ -52,6 +52,9 @@
 // Should = 1/500/MEASURE_INTERVAL(Unit: s) * 10^3
 // 100 = 1/500 * 1/0.02 * 10^3
 
+// Record samples
+#define RECORD_SAMPLE
+
 
 /* Global variables */
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
@@ -64,6 +67,12 @@ long diff = 0;   // Unit: nanosecond
 
 int fifo_fd = 0;
 
+#ifdef RECORD_SAMPLE
+#define RECORD_NUM 1000// x * MEASURE_INTERVAL(unit:ms)
+int Sample_counter = RECORD_NUM;
+char *Output_addr = "sample.dat";
+int Output_fd = 0;
+#endif
 
 /* GPIO Support - BEGIN */
 
@@ -283,6 +292,26 @@ void FIFO_close(void)
 #endif
 /* FIFO - END */
 
+/* Output File - BEGIN */
+
+int Record_init(void)
+{
+    Output_fd = open("sample.dat", O_CREAT | O_TRUNC | O_RDWR);
+    if (-1 == Output_fd)
+    {
+        // ERROR
+        return (-1);
+    }
+    return 0;
+}
+
+void Record_close()
+{
+    close(Output_fd);
+}
+
+/* Output File - END */
+
 /* MAIN - BEGIN */
 
 void Task1_encoder(void)
@@ -396,6 +425,16 @@ void Task2_encoder(void)
         printf("%d\n", freq);
         fflush(stdout);
 #endif
+
+#ifdef RECORD_SAMPLE
+        /* Record freq to file */
+        if(Sample_counter)
+        {
+            sprintf(string, "%d\r\n", freq);
+            write(Output_fd, string, strlen(string));
+            Sample_counter--;
+        }
+#endif
     }
 }
 
@@ -406,6 +445,10 @@ int main(void)
 
     /* Initialization something */
     // Config_GPIO();
+#ifdef RECORD_SAMPLE
+    Record_init();
+#endif
+
 #ifndef PRINT_TO_STDIO
     FIFO_init();
 #endif
@@ -418,5 +461,10 @@ int main(void)
     while (1) ;
 
     printf("Threads finished\n");
+
+#ifdef RECORD_SAMPLE
+    Record_close();
+#endif
     return 0;
 }
+

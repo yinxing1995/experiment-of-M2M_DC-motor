@@ -14,6 +14,7 @@
 
 /* Control Flag */
 #define DEBUG
+//#define RECORD_SAMPLE
 #define LOCAL_MODE
 //#define INPUT_FROM_STDIO
 
@@ -60,7 +61,11 @@ static struct PID_parameters
 
 /* Perferences */
 char *Serial_addr = "/dev/serial0";
+#ifdef RECORD_SAMPLE
+#define RECORD_NUM 1000
+int Sample_counter = RECORD_NUM;
 char *Output_addr = "sample.dat";
+#endif
 
 // FIFO Definition
 #ifndef LOCAL_MODE
@@ -239,10 +244,15 @@ void Compute_frequency(int milifrequency)
     //float time_interval = (float)MEASURE_INTERVAL / 1000 / 1000;   // us to s.
     char str[10];
 
+#ifdef RECORD_SAMPLE
     /* Record freq to file */
-    sprintf(str, "%d\r\n", milifrequency);
-    write(Output_fd, str, strlen(str));
-
+    if(Sample_counter)
+    {
+        sprintf(str, "%d\r\n", milifrequency);
+        write(Output_fd, str, strlen(str));
+        Sample_counter--;
+    }
+#endif
     pid.error_value = TARGET_FREQ - milifrequency;
     printf("error_value = %d ", pid.error_value);
 
@@ -368,8 +378,11 @@ int main(void)
 {
     /* Initialization something */
     Serial_init();
-    Output_init();
     PID_init();
+
+#ifdef RECORD_SAMPLE
+    Output_init();
+#endif
 
 #ifndef INPUT_FROM_STDIO
     FIFO_init();
@@ -391,4 +404,5 @@ int main(void)
     FIFO_close();
     return 0;
 }
+
 
