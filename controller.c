@@ -8,10 +8,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+/* Choose a Group */
+#define GROUP_2
+//#define GROUP_6
+
 /* Control Flag */
 #define DEBUG
 #define LOCAL_MODE
-#define INPUT_FROM_STDIO
+//#define INPUT_FROM_STDIO
 
 /*if placed on remote Rig, it is recommended to use stream_processing*/
 #define STREAM_PROCESSING
@@ -20,6 +24,7 @@
 /* Definitions */
 
 // PID Parameters
+#define FLOAT_INIT 0.0f
 #define Kp 2.0f
 #define Ki 0.5f
 #define Kd 0.5f
@@ -30,17 +35,28 @@
 #define MEASURE_INTERVAL 20000
 // Unit: us; 20ms = 20000 us
 
-#define TARGET_FREQ 3000
+#define TARGET_FREQ 2000
 // Unit: miliHz
 
 /* Global variables */
 int Serial_fd = 0;
 int Output_fd = 0;
 int fifo_fd = 0;
-int previous_error_value = 0;
 
 /* PID parameters */
-float P = 0.0f, I = 0.0f, D = 0.0f;
+static struct PID_parameters
+{
+   float P, I, D;
+   float kp, ki, kd;
+   int error_value;
+   int previous_error_value;
+   int dt;
+   int PID_out;
+   void (*Calculate_p)();
+   void (*Calculate_i)();
+   void (*Calculate_d)();
+   void (*Get_PID)();
+}pid;
 
 /* Perferences */
 char *Serial_addr = "/dev/serial0";
@@ -59,6 +75,12 @@ void Serial_close(void);
 void Serial_Transmit(const void* buff, int len);
 
 int File_init(void);
+
+void PID_init();
+void Proportionate();
+void Intergrate();
+void Deriviate();
+void Sum();
 /* Function Declaration - END */
 
 
@@ -112,7 +134,6 @@ void Output_close(void)
 #ifndef PRINT_TO_STDIO
 int FIFO_init(void)
 {
-    // 若fifo已存在，则直接使用，否则创建它
     // If a fifo already exists, use it directly, otherwise create it
     if ((mkfifo(FIFO_NAME, 0777) < 0) && (errno != EEXIST))
     {
@@ -120,7 +141,6 @@ int FIFO_init(void)
         exit(1);
     }
 
-    // 以阻塞型只读方式打开fifo
     // Open FIFO using block method with Read Only Mode.
     fifo_fd = open(FIFO_NAME, O_RDONLY);
     if (-1 == fifo_fd)
@@ -139,6 +159,27 @@ void FIFO_close(void)
 #endif
 /* FIFO - END */
 
+/* PID_INIT - BEGIN */
+void PID_init()
+{
+    pid.D = FLOAT_INIT;
+    pid.I = FLOAT_INIT;
+    pid.P = FLOAT_INIT;
+    pid.kp = Kp;
+    pid.ki = Ki;
+    pid.kd = Kd;
+    pid.dt = 0;
+    pid.PID_out = 0;
+    pid.error_value = 0;
+    pid.previous_error_value = 0;
+    pid.Calculate_p = &Proportionate;
+    pid.Calculate_i = &Intergrate;
+    pid.Calculate_d = &Deriviate;
+    pid.Get_PID = &Sum;
+}
+
+/* PID_INIT - END */
+
 /* MAIN PID - BEGIN */
 
 void Output(int E)
@@ -146,87 +187,76 @@ void Output(int E)
     //int final_value = 0, direction = 0;
     int output_value = 0;
     char str[15];
-/*
-    if (E > 1000 || E < -1000)
-    {
-        E > 0 ? (output_value = 30 * E / 1000 + 800) : (output_value = 30 * E / 1000 + 670);
-    }
-    else if (E < 2000 || E > -2000)
-    {
-        E > 0 ? (output_value = 35 * E / 1000 + 800) : (output_value = 35 * E / 1000 + 670);
-    }
-    else
-    {
-        E > 0 ? (output_value = 40 * E / 1000 + 800) : (output_value = 40 * E / 1000 + 670);
-    }
-*/
-/*
-    const int n[] = {800, 670};
-    const int m[] = {30, 35, 40};
-    int i = E/1000 ? ( (E < 2000 || E > -2000) ? 1 : 2) : 0;
-
-    output_value = m[i] * E / 1000 + n[E > 0 ? 0 : 1];*/
-
     /* Calculate output value */
-    // E > 0 ? (output_value = 20 * E / 1000 + 800) : (output_value = 20 * E / 1000 + 670);
+#ifdef GROUP_2
     output_value = 20 * E / 1000 + (E > 0 ? 777 : 697);
+#endif
 
+#ifdef GROUP_6
+    if (E > 1000 || E < -1000)
+        output_value = 30 * E / 1000 + (E > 0 ? 800 : 670);
+    if (E > 2000 || E < -2000)
+        output_value = 35 * E / 1000 + (E > 0 ? 800 : 670);
+    else
+        output_value = 40 * E / 1000 + (E > 0 ? 800 : 670);
+#endif
     sprintf(str, "%d 1\\", output_value);
     Serial_Transmit(str, strlen(str));
-    // write(Serial_fd, p, strlen(p));
 
 #ifdef DEBUG
     printf("output_value = %d\n", output_value);
 #endif
 }
 
-void Proportional(int *x, float *y)
+void  Proportionate()
 {
-    *y = Kp * (float)(*x);
+    pid.P = Kp * (float)pid.error_value;
 }
 
-void Intergrate(const float* dt, int* x, float* y)
+void Intergrate()
 {
-    *y = *y + (*x);//*(*dt);
-    //printf("change_y = %f\n", (*x)*(*dt));
+    pid.I += pid.error_value;//*(*dt);
 }
 
 
-void Deriviate(const float* dt, int* x, float* y)
+void Deriviate()
 {
-    *y = ((*x) - previous_error_value);///(*dt);
-    previous_error_value = (*x);
-    //printf("change_y = %f\n", (*x)*(*dt));
+    pid.D = (pid.error_value - pid.previous_error_value);///(*dt);
+    pid.previous_error_value = pid.error_value;
 }
 
+void Sum()
+{
+    pid.PID_out = (int)(pid.P + Ki * pid.I + Kd * pid.D);
+    if (pid.PID_out > PID_MAX)
+        pid.PID_out = PID_MAX;
+    else if (pid.PID_out < PID_MIN)
+        pid.PID_out = PID_MIN;
+}
 
 void Compute_frequency(int milifrequency)
 {
-    int error_value = 0, intergrate_value = 0, differentiate_value = 0;
-    float time_interval = (float)MEASURE_INTERVAL / 1000 / 1000;   // us to s.
-    int PID = 0;
+    //float time_interval = (float)MEASURE_INTERVAL / 1000 / 1000;   // us to s.
     char str[10];
 
     /* Record freq to file */
     sprintf(str, "%d\r\n", milifrequency);
     write(Output_fd, str, strlen(str));
 
-    error_value = TARGET_FREQ - milifrequency;
-    printf("error_value = %d ", error_value);
-    Proportional(&error_value, &P);
-    Intergrate(&time_interval, &error_value, &I);
-    Deriviate(&time_interval, &error_value, &D);
-    PID = (int)(P + Ki*I + Kd*D);
-    /* Limit PID output to between PID_MAX and PID_MIN */
-    if (PID > PID_MAX)
-        PID = PID_MAX;
-    else if (PID < PID_MIN)
-        PID = PID_MIN;
+    pid.error_value = TARGET_FREQ - milifrequency;
+    printf("error_value = %d ", pid.error_value);
 
-    Output(PID);   //Serial output begins.
+    pid.Calculate_p();
+    pid.Calculate_i();
+    pid.Calculate_d();
+    pid.Get_PID();
+    /* Limit PID output to between PID_MAX and PID_MIN */
+
+
+    Output(pid.PID_out);   //Serial output begins.
 
 #ifdef DEBUG
-    printf("PID = %d P = %f I = %f\n", PID, P, I);
+    printf("PID = %d P = %f I = %f D = %f\n", pid.PID_out, pid.P, pid.I, pid.D);
 #endif
     //compute PID;
 }
@@ -339,6 +369,8 @@ int main(void)
     /* Initialization something */
     Serial_init();
     Output_init();
+    PID_init();
+
 #ifndef INPUT_FROM_STDIO
     FIFO_init();
 #endif
@@ -359,3 +391,4 @@ int main(void)
     FIFO_close();
     return 0;
 }
+
