@@ -11,7 +11,7 @@
 /* Control Flag */
 #define DEBUG
 #define LOCAL_MODE
-//#define INPUT_FROM_STDIO
+#define INPUT_FROM_STDIO
 
 /*if placed on remote Rig, it is recommended to use stream_processing*/
 #define STREAM_PROCESSING
@@ -22,7 +22,7 @@
 // PID Parameters
 #define Kp 2.0f
 #define Ki 0.5f
-#define Kd 0.0f
+#define Kd 0.5f
 
 #define PID_MAX 9000
 #define PID_MIN -9000
@@ -38,6 +38,9 @@ int Serial_fd = 0;
 int Output_fd = 0;
 int fifo_fd = 0;
 int previous_error_value = 0;
+
+/* PID parameters */
+float P = 0.0f, I = 0.0f, D = 0.0f;
 
 /* Perferences */
 char *Serial_addr = "/dev/serial0";
@@ -184,14 +187,14 @@ void Proportional(int *x, float *y)
 
 void Intergrate(const float* dt, int* x, float* y)
 {
-    *y = *y + (*x)*(*dt);
+    *y = *y + (*x);//*(*dt);
     //printf("change_y = %f\n", (*x)*(*dt));
 }
 
 
 void Deriviate(const float* dt, int* x, float* y)
 {
-    *y = ((*x) - previous_error_value)/(*dt);
+    *y = ((*x) - previous_error_value);///(*dt);
     previous_error_value = (*x);
     //printf("change_y = %f\n", (*x)*(*dt));
 }
@@ -201,7 +204,6 @@ void Compute_frequency(int milifrequency)
 {
     int error_value = 0, intergrate_value = 0, differentiate_value = 0;
     float time_interval = (float)MEASURE_INTERVAL / 1000 / 1000;   // us to s.
-    float P = 0.0f, I = 0.0f, D = 0.0f;
     int PID = 0;
     char str[10];
 
@@ -210,7 +212,7 @@ void Compute_frequency(int milifrequency)
     write(Output_fd, str, strlen(str));
 
     error_value = TARGET_FREQ - milifrequency;
-    //printf("error_value = %d ", error_value);
+    printf("error_value = %d ", error_value);
     Proportional(&error_value, &P);
     Intergrate(&time_interval, &error_value, &I);
     Deriviate(&time_interval, &error_value, &D);
