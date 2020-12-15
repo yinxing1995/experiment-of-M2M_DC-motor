@@ -26,9 +26,11 @@
 
 // PID Parameters
 #define FLOAT_INIT 0.0f
+#ifndef NOT_DEF_PID_PARAM
 #define Kp 1.2f
 #define Ki 0.5f
 #define Kd 0.8f
+#endif
 
 #define PID_MAX 9000
 #define PID_MIN -9000
@@ -36,8 +38,10 @@
 #define MEASURE_INTERVAL 20000
 // Unit: us; 20ms = 20000 us
 
+#ifndef NOT_DEF_TARGET_FREQ
 #define TARGET_FREQ 2000
 // Unit: miliHz
+#endif
 
 /* Global variables */
 int Serial_fd = 0;
@@ -62,9 +66,15 @@ static struct PID_parameters
 /* Perferences */
 char *Serial_addr = "/dev/serial0";
 #ifdef RECORD_SAMPLE
-#define RECORD_NUM 1000
+
+    #ifndef NOT_DEF_OUT_ADDR
+    #define OUT_ADDR "sample.dat"
+    // Unit: miliHz
+    #endif
+
+#define RECORD_NUM 500
 int Sample_counter = RECORD_NUM;
-char *Output_addr = "sample.dat";
+char *Output_addr = OUT_ADDR;
 #endif
 
 // FIFO Definition
@@ -119,7 +129,7 @@ void Serial_Transmit(const void* buff, int len)
 
 int Output_init(void)
 {
-    Output_fd = open("sample.dat", O_CREAT | O_TRUNC | O_RDWR);
+    Output_fd = open(Output_addr, O_CREAT | O_TRUNC | O_RDWR);
     if (-1 == Output_fd)
     {
         // ERROR
@@ -195,9 +205,7 @@ void Output(int E)
     /* Calculate output value */
 #ifdef GROUP_2
     output_value = 20 * E / 1000 + (E > 0 ? 777 : 697);
-#endif
-
-#ifdef GROUP_6
+#else   //#ifdef GROUP_6
     if (E > 1000 || E < -1000)
         output_value = 30 * E / 1000 + (E > 0 ? 800 : 670);
     /*
@@ -215,7 +223,7 @@ void Output(int E)
 #endif
 }
 
-void  Proportionate()
+void Proportionate()
 {
     pid.P = Kp * (float)pid.error_value;
 }
@@ -406,5 +414,3 @@ int main(void)
     FIFO_close();
     return 0;
 }
-
-
