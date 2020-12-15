@@ -13,6 +13,7 @@
 #define DEBUG
 #define ENABLE_DIRECTION_DETECT
 //#define PRINT_TO_STDIO
+//#define RECORD_SAMPLE
 
 #ifdef PRINT_TO_STDIO
 #undef DEBUG
@@ -51,9 +52,6 @@
 #define MILLIHZ_FREQ_PER_COUNT 100
 // Should = 1/500/MEASURE_INTERVAL(Unit: s) * 10^3
 // 100 = 1/500 * 1/0.02 * 10^3
-
-// Record samples
-#define RECORD_SAMPLE
 
 
 /* Global variables */
@@ -293,10 +291,10 @@ void FIFO_close(void)
 /* FIFO - END */
 
 /* Output File - BEGIN */
-
+#ifdef RECORD_SAMPLE
 int Record_init(void)
 {
-    Output_fd = open("sample.dat", O_CREAT | O_TRUNC | O_RDWR);
+    Output_fd = open(Output_addr, O_CREAT | O_TRUNC | O_RDWR);
     if (-1 == Output_fd)
     {
         // ERROR
@@ -309,7 +307,7 @@ void Record_close()
 {
     close(Output_fd);
 }
-
+#endif
 /* Output File - END */
 
 /* MAIN - BEGIN */
@@ -386,7 +384,9 @@ void Task1_encoder(void)
 
 void Task2_encoder(void)
 {
+    char string[20] = "";
     int freq = 0; // Unit: mHz (millihertz) 10e-3 Hz
+
     while (1)
     {
         usleep(MEASURE_INTERVAL);
@@ -403,7 +403,7 @@ void Task2_encoder(void)
         FrequencyCounter = 0;
 
 #ifdef ENABLE_DIRECTION_DETECT
-        if (RotationDirection == 1)
+        if (RotationDirection == 0)   // For Group 2, is 1.
             freq = -freq;
 #endif
 
@@ -412,8 +412,8 @@ void Task2_encoder(void)
 #ifdef DEBUG
         printf("The frequency is %d miliHz\n", freq);
 #endif
+
 #ifndef PRINT_TO_STDIO
-        char string[20] = "";
         // memset(string, 0, sizeof(string));
         // sprintf(string, "%d\0", freq);
         snprintf(string, 20, "%07d%c", freq, '\0');
@@ -428,7 +428,7 @@ void Task2_encoder(void)
 
 #ifdef RECORD_SAMPLE
         /* Record freq to file */
-        if(Sample_counter)
+        if (Sample_counter)
         {
             sprintf(string, "%d\r\n", freq);
             write(Output_fd, string, strlen(string));
@@ -467,4 +467,3 @@ int main(void)
 #endif
     return 0;
 }
-
