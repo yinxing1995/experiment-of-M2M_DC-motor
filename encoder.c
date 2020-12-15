@@ -68,7 +68,7 @@ long diff = 0;   // Unit: nanosecond
 int fifo_fd = 0;
 
 #ifdef RECORD_SAMPLE
-#define RECORD_NUM 1000// x * MEASURE_INTERVAL(unit:ms)
+#define RECORD_NUM 500// x * MEASURE_INTERVAL(unit:ms)
 int Sample_counter = RECORD_NUM;
 char *Output_addr = "sample.dat";
 int Output_fd = 0;
@@ -403,7 +403,7 @@ void Task2_encoder(void)
         FrequencyCounter = 0;
 
 #ifdef ENABLE_DIRECTION_DETECT
-        if (RotationDirection == 1)
+        if (RotationDirection == 0)
             freq = -freq;
 #endif
 

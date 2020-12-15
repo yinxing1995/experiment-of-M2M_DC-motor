@@ -9,8 +9,8 @@
 #include <sys/types.h>
 
 /* Choose a Group */
-#define GROUP_2
-//#define GROUP_6
+//#define GROUP_2
+#define GROUP_6
 
 /* Control Flag */
 #define DEBUG
@@ -26,9 +26,9 @@
 
 // PID Parameters
 #define FLOAT_INIT 0.0f
-#define Kp 2.0f
+#define Kp 1.2f
 #define Ki 0.5f
-#define Kd 0.5f
+#define Kd 0.8f
 
 #define PID_MAX 9000
 #define PID_MIN -9000
@@ -200,10 +200,12 @@ void Output(int E)
 #ifdef GROUP_6
     if (E > 1000 || E < -1000)
         output_value = 30 * E / 1000 + (E > 0 ? 800 : 670);
+    /*
     if (E > 2000 || E < -2000)
         output_value = 35 * E / 1000 + (E > 0 ? 800 : 670);
+    */
     else
-        output_value = 40 * E / 1000 + (E > 0 ? 800 : 670);
+        output_value = 37 * (E > 0 ? (E-1000) : (E +1000)) / 1000 + (E > 0 ? 830 : 630);
 #endif
     sprintf(str, "%d 1\\", output_value);
     Serial_Transmit(str, strlen(str));
