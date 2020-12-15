@@ -45,14 +45,20 @@
 /* Parameters */
 #define MAX_INTERVAL_TO_USING_FREQ_MEASURE 5000000L
 // Unit: ns; 5ms = 5000000 ns
-#define MEASURE_INTERVAL 20000
-// Unit: us; 20ms = 20000 us
 #define REVOLUTIONS_EVERY_NANO_SEC 2000000000
 // milifrequency = (int)(1000000000/diff)*1000/500;
+
+/* Notes for Parameters
+   20 ms -> 20000 / 100
+   50 ms -> 50000 / 40
+ */
+#ifndef NOT_DEF_INTERVAL
+#define MEASURE_INTERVAL 20000
+// Unit: us; 20ms = 20000 us
 #define MILLIHZ_FREQ_PER_COUNT 100
 // Should = 1/500/MEASURE_INTERVAL(Unit: s) * 10^3
 // 100 = 1/500 * 1/0.02 * 10^3
-
+#endif
 
 /* Global variables */
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
@@ -403,7 +409,7 @@ void Task2_encoder(void)
         FrequencyCounter = 0;
 
 #ifdef ENABLE_DIRECTION_DETECT
-        if (RotationDirection == 0)
+        if (RotationDirection == 0)   // For Group 2, is 1.
             freq = -freq;
 #endif
 
