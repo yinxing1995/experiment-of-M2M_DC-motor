@@ -13,7 +13,7 @@
 #define DEBUG
 #define ENABLE_DIRECTION_DETECT
 //#define PRINT_TO_STDIO
-//#define RECORD_SAMPLE
+#define RECORD_SAMPLE
 
 #ifdef PRINT_TO_STDIO
 #undef DEBUG

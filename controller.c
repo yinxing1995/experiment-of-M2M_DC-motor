@@ -72,7 +72,7 @@ char *Serial_addr = "/dev/serial0";
     // Unit: miliHz
     #endif
 
-#define RECORD_NUM 1000
+#define RECORD_NUM 500
 int Sample_counter = RECORD_NUM;
 char *Output_addr = OUT_ADDR;
 #endif
