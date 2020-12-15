@@ -403,11 +403,7 @@ void Task2_encoder(void)
         FrequencyCounter = 0;
 
 #ifdef ENABLE_DIRECTION_DETECT
-<<<<<<< HEAD
-        if (RotationDirection == 0)   // For Group 2, is 1.
-=======
         if (RotationDirection == 0)
->>>>>>> upstream/main
             freq = -freq;
 #endif
 

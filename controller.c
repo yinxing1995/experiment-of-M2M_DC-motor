@@ -9,11 +9,7 @@
 #include <sys/types.h>
 
 /* Choose a Group */
-<<<<<<< HEAD
-// #define GROUP_2
-=======
 //#define GROUP_2
->>>>>>> upstream/main
 #define GROUP_6
 
 /* Control Flag */
@@ -30,17 +26,9 @@
 
 // PID Parameters
 #define FLOAT_INIT 0.0f
-<<<<<<< HEAD
-#ifndef NOT_DEF_PID_PARAM
-#define Kp 2.0f
-#define Ki 0.5f
-#define Kd 0.5f
-#endif
-=======
 #define Kp 1.2f
 #define Ki 0.5f
 #define Kd 0.8f
->>>>>>> upstream/main
 
 #define PID_MAX 9000
 #define PID_MIN -9000
