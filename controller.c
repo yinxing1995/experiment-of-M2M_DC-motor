@@ -26,9 +26,11 @@
 
 // PID Parameters
 #define FLOAT_INIT 0.0f
+#ifndef NOT_DEF_PID_PARAM
 #define Kp 1.2f
 #define Ki 0.5f
 #define Kd 0.8f
+#endif
 
 #define PID_MAX 9000
 #define PID_MIN -9000
