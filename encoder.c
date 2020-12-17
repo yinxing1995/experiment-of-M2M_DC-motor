@@ -12,7 +12,7 @@
 /* Control Flag */
 #define DEBUG
 #define ENABLE_DIRECTION_DETECT
-//#define PRINT_TO_STDIO
+#define PRINT_TO_STDIO
 
 #ifdef PRINT_TO_STDIO
 #undef DEBUG
@@ -412,8 +412,8 @@ void Task2_encoder(void)
 #ifdef DEBUG
         printf("The frequency is %d miliHz\n", freq);
 #endif
+	char string[20] = "";
 #ifndef PRINT_TO_STDIO
-        char string[20] = "";
         // memset(string, 0, sizeof(string));
         // sprintf(string, "%d\0", freq);
         snprintf(string, 20, "%07d%c", freq, '\0');
