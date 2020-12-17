@@ -15,7 +15,7 @@
 /* Control Flag */
 #define DEBUG
 //#define RECORD_SAMPLE
-#define LOCAL_MODE
+//#define LOCAL_MODE
 //#define INPUT_FROM_STDIO
 
 /*if placed on remote Rig, it is recommended to use stream_processing*/

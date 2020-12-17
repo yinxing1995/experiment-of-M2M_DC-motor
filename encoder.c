@@ -38,7 +38,7 @@
 
 // FIFO
 #ifndef PRINT_TO_STDIO
-#define FIFO_NAME "fifomaster"
+#define FIFO_NAME "fifomaster645"
 #endif
 
 /* Parameters */
