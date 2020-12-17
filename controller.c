@@ -16,7 +16,7 @@
 #define DEBUG
 //#define RECORD_SAMPLE
 //#define LOCAL_MODE
-//#define INPUT_FROM_STDIO
+#define INPUT_FROM_STDIO
 
 /*if placed on remote Rig, it is recommended to use stream_processing*/
 #define STREAM_PROCESSING
@@ -26,9 +26,9 @@
 
 // PID Parameters
 #define FLOAT_INIT 0.0f
-#define Kp 1.2f
-#define Ki 0.5f
-#define Kd 0.8f
+#define Kp 1.5f
+#define Ki 0.3f
+#define Kd 0.3f
 
 #define PID_MAX 9000
 #define PID_MIN -9000
